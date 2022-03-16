@@ -108,3 +108,6 @@ for i, task in enumerate(tasks):
         "ensemble_mlp_diffn": average_ensemble - average_mlp,
     }
     rows.append({**this_task, **data_for_task[task.task_id].qualities})
+
+dataset = pd.DataFrame(rows).dropna(subset=["ensemble_mlp_diffn"]).interpolate()
+dataset.to_csv("data_for_task.csv")
