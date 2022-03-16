@@ -6,6 +6,9 @@ from collections import defaultdict
 from multiprocessing import Pool, RLock, freeze_support
 from tqdm.contrib.concurrent import process_map
 from p_tqdm import p_map
+import pandas as pd
+import numpy as np
+
 
 is_ensemble = {
     "boost": True,
@@ -21,7 +24,7 @@ is_ensemble = {
 runs_with_mlp = openml.runs.list_runs(flow=[1820])
 with open("runs_with_mlp.pickle", "wb") as handle:
     pickle.dump(runs_with_mlp, handle, protocol=pickle.HIGHEST_PROTOCOL)
-print("Downloaded runs with MLP\nNow downloading runs for these.")
+print("Downloaded runs with MLP\nNow downloading data and runs for these.")
 
 
 def get_tasks(run):
@@ -35,6 +38,10 @@ def get_tasks(run):
 tasks = p_map(get_tasks, runs_with_mlp.values())
 with open("tasks.pickle", "wb") as handle:
     pickle.dump(tasks, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+data_for_task = {}
+for task in tqdm(tasks):
+    data_for_task[task.task_id] = openml.datasets.get_dataset(task.dataset_id)
 
 print("Downloaded runs. Now finding performances for each task.")
 
@@ -83,3 +90,21 @@ def find_performances_for_task(task):
 
 
 performances = p_map(find_performances_for_task, tasks)
+with open("performances.pickle", "wb") as handle:
+    pickle.dump(performances, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+rows = []
+for i, task in enumerate(tasks):
+    average_ensemble = np.mean(
+        [run for run, is_ensemble in performances[i] if is_ensemble]
+    )
+    average_mlp = np.mean(
+        [run for run, is_ensemble in performances[i] if not is_ensemble]
+    )
+    this_task = {
+        "id": task.task_id,
+        "average_ensemble": average_ensemble,
+        "average_mlp": average_mlp,
+        "ensemble_mlp_diffn": average_ensemble - average_mlp,
+    }
+    rows.append({**this_task, **data_for_task[task.task_id].qualities})
