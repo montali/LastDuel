@@ -8,26 +8,23 @@ from tqdm.contrib.concurrent import process_map
 from p_tqdm import p_map
 import pandas as pd
 import numpy as np
+from os import path
+from openml.runs import OpenMLRun
+from openml.tasks import OpenMLTask
+from openml.flows import OpenMLFlow
 
 
-is_ensemble = {
-    "boost": True,
-    "ada": True,
-    "forest": True,
-    "ensemble": True,
-    "bag": True,
-    "nn": False,
-    "nnet": False,
-    "mlp": False,
-    "multilayerperceptron": False,
-}
-runs_with_mlp = openml.runs.list_runs(flow=[1820])
-with open("runs_with_mlp.pickle", "wb") as handle:
-    pickle.dump(runs_with_mlp, handle, protocol=pickle.HIGHEST_PROTOCOL)
-print("Downloaded runs with MLP\nNow downloading data and runs for these.")
+def get_tasks(run: OpenMLRun) -> OpenMLTask:
+    """
+    Downloads the OpenMLTask objects for a given run.
+    Returns none when the task is not found: this requires a successive cleaning of the results.
 
+    Args:
+        run: Run to get the tasks for
 
-def get_tasks(run):
+    Returns:
+        Task for the run
+    """
     try:
         return openml.tasks.get_task(run["task_id"])
     except Exception as e:
@@ -35,18 +32,18 @@ def get_tasks(run):
         return None
 
 
-tasks = p_map(get_tasks, runs_with_mlp.values())
-with open("tasks.pickle", "wb") as handle:
-    pickle.dump(tasks, handle, protocol=pickle.HIGHEST_PROTOCOL)
+def find_performances_for_task(task: OpenMLTask) -> list:
+    """
+    Gets the performance values for a given task, consisting in tuples (accuracy, is_ensemble),
+    with is_ensemble being True for ensembles, False for Neural Networks
 
-data_for_task = {}
-for task in tqdm(tasks):
-    data_for_task[task.task_id] = openml.datasets.get_dataset(task.dataset_id)
+    Args:
+        task: Task to get the performances for
 
-print("Downloaded runs. Now finding performances for each task.")
+    Returns:
+        Performances for the task
+    """
 
-
-def find_performances_for_task(task):
     runs_for_task = []
     checked_flows = {}
     non_interesting_flows = set()
@@ -62,12 +59,15 @@ def find_performances_for_task(task):
         elif (
             run["flow_id"] in checked_flows
         ):  # Already checked this flow and it's ensemble/mlp, so it's interesting
-            runs_for_task.append(
-                (
-                    openml.runs.get_run(run_id).evaluations["predictive_accuracy"],
-                    checked_flows[run["flow_id"]],
+            try:
+                runs_for_task.append(
+                    (
+                        openml.runs.get_run(run_id).evaluations["predictive_accuracy"],
+                        checked_flows[run["flow_id"]],
+                    )
                 )
-            )
+            except:
+                continue
         else:
             flow_name = openml.flows.get_flow(run["flow_id"]).name.lower()
             ensemble_found = [
@@ -76,12 +76,17 @@ def find_performances_for_task(task):
                 if method in flow_name
             ]
             if ensemble_found:  # if the method used is an ensemble or NN
-                runs_for_task.append(
-                    (
-                        openml.runs.get_run(run_id).evaluations["predictive_accuracy"],
-                        ensemble_found[0],
+                try:
+                    runs_for_task.append(
+                        (
+                            openml.runs.get_run(run_id).evaluations[
+                                "predictive_accuracy"
+                            ],
+                            ensemble_found[0],
+                        )
                     )
-                )
+                except:
+                    continue
                 checked_flows[run["flow_id"]] = ensemble_found[0]
             else:
                 non_interesting_flows.add(run["flow_id"])
@@ -89,9 +94,61 @@ def find_performances_for_task(task):
     return runs_for_task
 
 
-performances = p_map(find_performances_for_task, tasks)
-with open("performances.pickle", "wb") as handle:
-    pickle.dump(performances, handle, protocol=pickle.HIGHEST_PROTOCOL)
+is_ensemble = {  # Dictionary containing keywords for ensemble/NN
+    "boost": True,
+    "ada": True,
+    "forest": True,
+    "ensemble": True,
+    "bag": True,
+    "nn": False,
+    "nnet": False,
+    "mlp": False,
+    "multilayerperceptron": False,
+}
+
+if path.exists("runs_with_mlp.pickle"):
+    with open("runs_with_mlp.pickle", "rb") as f:
+        runs_with_mlp = pickle.load(f)
+    print("Loaded runs_with_mlp.pickle")
+else:
+    runs_with_mlp = openml.runs.list_runs(flow=[1820])
+    with open("runs_with_mlp.pickle", "wb") as handle:
+        pickle.dump(runs_with_mlp, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print("Downloaded runs with MLP\nNow downloading data and runs for these.")
+
+
+if path.exists("tasks.pickle"):
+    with open("tasks.pickle", "rb") as f:
+        tasks = pickle.load(f)
+    print("Loaded tasks.pickle")
+else:
+    tasks = p_map(get_tasks, runs_with_mlp.values())
+    tasks = [task for task in tasks if task]  # Delete missing
+    with open("tasks.pickle", "wb") as handle:
+        pickle.dump(tasks, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+if path.exists("data_for_task.pickle"):
+    with open("data_for_task.pickle", "rb") as f:
+        data_for_task = pickle.load(f)
+    print("Loaded data_for_task.pickle")
+else:
+    data_for_task = {}
+    for task in tqdm(tasks):
+        data_for_task[task.task_id] = openml.datasets.get_dataset(task.dataset_id)
+    with open("data_for_task.pickle", "wb") as handle:
+        pickle.dump(data_for_task, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    print("Downloaded runs. Now finding performances for each task.")
+
+if path.exists("performances.pickle"):
+    with open("performances.pickle", "rb") as f:
+        performances = pickle.load(f)
+    print("Loaded performances.pickle")
+else:
+    performances = p_map(find_performances_for_task, tasks)
+    with open("performances.pickle", "wb") as handle:
+        pickle.dump(performances, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+# Generate a Pandas dataframe with the data we collected
 
 rows = []
 for i, task in enumerate(tasks):
