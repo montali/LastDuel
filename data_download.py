@@ -106,46 +106,46 @@ is_ensemble = {  # Dictionary containing keywords for ensemble/NN
     "multilayerperceptron": False,
 }
 
-if path.exists("runs_with_mlp.pickle"):
-    with open("runs_with_mlp.pickle", "rb") as f:
+if path.exists("data/runs_with_mlp.pkl"):
+    with open("data/runs_with_mlp.pkl", "rb") as f:
         runs_with_mlp = pickle.load(f)
-    print("Loaded runs_with_mlp.pickle")
+    print("Loaded data/runs_with_mlp.pkl")
 else:
     runs_with_mlp = openml.runs.list_runs(flow=[1820])
-    with open("runs_with_mlp.pickle", "wb") as handle:
+    with open("data/runs_with_mlp.pkl", "wb") as handle:
         pickle.dump(runs_with_mlp, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print("Downloaded runs with MLP\nNow downloading data and runs for these.")
 
 
-if path.exists("tasks.pickle"):
-    with open("tasks.pickle", "rb") as f:
+if path.exists("data/tasks.pkl"):
+    with open("data/tasks.pkl", "rb") as f:
         tasks = pickle.load(f)
-    print("Loaded tasks.pickle")
+    print("Loaded data/tasks.pkl")
 else:
     tasks = p_map(get_tasks, runs_with_mlp.values())
     tasks = [task for task in tasks if task]  # Delete missing
-    with open("tasks.pickle", "wb") as handle:
+    with open("data/tasks.pkl", "wb") as handle:
         pickle.dump(tasks, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-if path.exists("data_for_task.pickle"):
-    with open("data_for_task.pickle", "rb") as f:
+if path.exists("data/data_for_task.pkl"):
+    with open("data/data_for_task.pkl", "rb") as f:
         data_for_task = pickle.load(f)
-    print("Loaded data_for_task.pickle")
+    print("Loaded data/data_for_task.pkl")
 else:
     data_for_task = {}
     for task in tqdm(tasks):
         data_for_task[task.task_id] = openml.datasets.get_dataset(task.dataset_id)
-    with open("data_for_task.pickle", "wb") as handle:
+    with open("data/data_for_task.pkl", "wb") as handle:
         pickle.dump(data_for_task, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print("Downloaded runs. Now finding performances for each task.")
 
-if path.exists("performances.pickle"):
-    with open("performances.pickle", "rb") as f:
+if path.exists("data/performances.pkl"):
+    with open("data/performances.pkl", "rb") as f:
         performances = pickle.load(f)
-    print("Loaded performances.pickle")
+    print("Loaded data/performances.pkl")
 else:
     performances = p_map(find_performances_for_task, tasks)
-    with open("performances.pickle", "wb") as handle:
+    with open("data/performances.pkl", "wb") as handle:
         pickle.dump(performances, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 # Generate a Pandas dataframe with the data we collected
