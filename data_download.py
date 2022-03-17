@@ -139,14 +139,16 @@ else:
         pickle.dump(data_for_task, handle, protocol=pickle.HIGHEST_PROTOCOL)
     print("Downloaded runs. Now finding performances for each task.")
 
+performances = []
 if path.exists("data/performances.pkl"):
     with open("data/performances.pkl", "rb") as f:
         performances = pickle.load(f)
     print("Loaded data/performances.pkl")
 else:
-    performances = p_map(find_performances_for_task, tasks)
-    with open("data/performances.pkl", "wb") as handle:
-        pickle.dump(performances, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    for i in range(0, len(tasks), 100):
+        performances += p_map(find_performances_for_task, tasks[i : i + 100])
+        with open("data/performances.pkl", "wb") as handle:
+            pickle.dump(performances, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 # Generate a Pandas dataframe with the data we collected
 
