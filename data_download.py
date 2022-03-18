@@ -153,7 +153,7 @@ else:
 # Generate a Pandas dataframe with the data we collected
 
 rows = []
-for i, task in enumerate(tasks):
+for i, task in enumerate(tasks[:3300]):
     average_ensemble = np.mean(
         [run for run, is_ensemble in performances[i] if is_ensemble]
     )
