@@ -21,7 +21,8 @@ def download_runs(flow: Dict) -> List[Dict]:
                         tasks[run.task_id].dataset_id)
             flow_runs.append({
                 "accuracy": run.evaluations["predictive_accuracy"],
-                "algorithm": flow["label"]
+                "algorithm": flow["label"],
+                "task": run.task_id
             } | datasets[tasks[run.task_id].dataset_id].qualities)
         except:
             continue
