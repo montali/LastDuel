@@ -129,3 +129,4 @@ dmypy.json
 .pyre/
 .vscode/launch.json
 catboost_info/*
+openai.key
