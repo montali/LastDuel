@@ -32,6 +32,10 @@ OpenML comes with an API (wrapped in multiple languages) that allows us to downl
 
 All these steps are done in the [data_download.py](https://github.com/montali/LastDuel/blob/main/data_download.py) script.
 
-## Training of a model
+## Ensembles vs Neural Networks model
 
 A first, interesting model to train would be one that's able to infer the difference in performance between ensembles and neural networks, given a dataset. To do so, we can generate a target value being the difference between the two averages, and train a regressor (both an ensemble and a neural network🥴). This is done in the [regression notebook](https://github.com/montali/LastDuel/blob/main/regression.ipynb).
+
+## Generalized model
+
+After working on a comparison between ensembles and NNs, it became clear how it is indeed possible to get insights about algorithm performances basing on the task metafeatures. To do this, a dataset (`flow_runs.csv`) has been generated, labeling the algorithms (e.g. Neural Network, Ensemble, Naive Bayes, Logistic Regression...) with OpenAI's APIs (script in `flow_labeling.py`, results in `flow_classification.jsonl`), then training a neural network to predict the accuracy of the models. The R2 score that was obtained on the test set (which has been split using the tasks, so that the predicted tasks are never seen before) was around 0.8.
